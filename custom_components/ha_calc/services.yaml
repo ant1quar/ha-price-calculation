@@ -1,0 +1,31 @@
+get_operations:
+  name: Список операций
+  description: Возвращает операции калькулятора (id и label) для UI и автоматизаций.
+
+calculate:
+  name: Вычислить
+  description: Применяет операцию к двум числам. Ошибки — как при REST 403 (деление на ноль, неверная операция, не числа).
+  fields:
+    a:
+      name: a
+      description: Первое число
+      required: true
+      example: 10
+      selector:
+        number:
+          mode: box
+    b:
+      name: b
+      description: Второе число
+      required: true
+      example: 2
+      selector:
+        number:
+          mode: box
+    operation:
+      name: Операция
+      description: add, subtract, multiply или divide
+      required: true
+      example: divide
+      selector:
+        text:
