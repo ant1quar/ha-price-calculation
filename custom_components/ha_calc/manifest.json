@@ -1,6 +1,6 @@
 {
   "domain": "ha_calc",
-  "name": "HA Calc",
+  "name": "HA 3D Print Calc",
   "after_dependencies": ["http"],
   "codeowners": ["@ivankrivonos"],
   "config_flow": false,
@@ -9,5 +9,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/ivankrivonos/technologovo/issues",
   "requirements": [],
-  "version": "2.0.5"
+  "version": "3.0.1"
 }

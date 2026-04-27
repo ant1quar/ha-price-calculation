@@ -1,31 +1,106 @@
-get_operations:
-  name: Список операций
-  description: Возвращает операции калькулятора (id и label) для UI и автоматизаций.
+get_filaments:
+  name: Список филаментов
+  description: Возвращает сохранённые филаменты (id, name, manufacturer, price ₽/кг).
+
+set_filaments:
+  name: Сохранить филаменты
+  description: Полная замена списка филаментов.
+  fields:
+    filaments:
+      name: Филаменты
+      description: Массив объектов { id, name, manufacturer?, price }
+      required: true
+      selector:
+        object:
+
+get_additionals:
+  name: Список доп. материалов
+  description: Возвращает дополнительные позиции (id, name, price ₽/ед.).
+
+set_additionals:
+  name: Сохранить доп. материалы
+  description: Полная замена списка.
+  fields:
+    additionals:
+      name: Дополнительно
+      required: true
+      selector:
+        object:
+
+get_settings:
+  name: Настройки расчёта
+  description: material_factor, hourly_rate (₽/ч).
+
+set_settings:
+  name: Сохранить настройки
+  description: Частичное обновление настроек.
+  fields:
+    material_factor:
+      name: Коэффициент материала
+      description: Множитель расхода (например 1.1)
+      selector:
+        number:
+          mode: box
+          step: 0.01
+    hourly_rate:
+      name: Ставка машины
+      description: ₽/ч
+      selector:
+        number:
+          mode: box
+          step: 0.01
 
 calculate:
-  name: Вычислить
-  description: Применяет операцию к двум числам. Ошибки — как при REST 403 (деление на ноль, неверная операция, не числа).
+  name: Расчёт 3D-печати
+  description: Себестоимость и цены при маржах 60%, 75%, 80% (на штуку и на стол).
   fields:
-    a:
-      name: a
-      description: Первое число
-      required: true
-      example: 10
-      selector:
-        number:
-          mode: box
-    b:
-      name: b
-      description: Второе число
-      required: true
-      example: 2
-      selector:
-        number:
-          mode: box
-    operation:
-      name: Операция
-      description: add, subtract, multiply или divide
-      required: true
-      example: divide
+    filament_id:
+      name: ID филамента
+      description: Из справочника; альтернатива — price_kg
       selector:
         text:
+    price_kg:
+      name: Цена пластика
+      description: ₽/кг (если не используется filament_id)
+      selector:
+        number:
+          mode: box
+    mass_g:
+      name: Масса стола
+      description: Граммы филамента на весь стол (не на штуку)
+      required: true
+      selector:
+        number:
+          mode: box
+    print_hours:
+      name: Время печати стола
+      description: Часы на весь стол (все модели)
+      required: true
+      selector:
+        number:
+          mode: box
+    models_on_table:
+      name: Моделей на столе
+      description: N ≥ 1 — для деления себестоимости стола на штуку
+      required: true
+      selector:
+        number:
+          mode: box
+          min: 1
+    additional_lines:
+      name: Допы на штуку
+      description: Список { id, qty } по справочнику additionals
+      selector:
+        object:
+    material_factor:
+      name: Коэффициент материала
+      description: Переопределение из настроек
+      selector:
+        number:
+          mode: box
+    hourly_rate:
+      name: Ставка машины
+      description: Переопределение из настроек, ₽/ч
+      selector:
+        number:
+          mode: box
