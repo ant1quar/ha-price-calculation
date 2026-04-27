@@ -2,15 +2,27 @@ import { css, html, LitElement, type PropertyValues } from "lit";
 import { property, state } from "lit/decorators.js";
 
 type HassLike = {
+  /** See HomeAssistant.callService: (domain, service, serviceData, target, notifyOnError?, returnResponse?) */
   callService(
     domain: string,
     service: string,
-    data?: Record<string, unknown>,
-    options?: { return_response?: boolean }
+    serviceData?: Record<string, unknown>,
+    target?: Record<string, unknown>,
+    notifyOnError?: boolean,
+    returnResponse?: boolean
   ): Promise<unknown>;
 };
 
 type Operation = { id: string; label: string };
+
+/** When returnResponse is true, HA often wraps payload in `{ context, response }`. */
+function unwrapServiceResult<T extends Record<string, unknown>>(raw: unknown): T {
+  if (raw && typeof raw === "object" && "response" in raw) {
+    const r = (raw as { response: unknown }).response;
+    if (r && typeof r === "object") return r as T;
+  }
+  return raw as T;
+}
 
 function serviceErrorMessage(err: unknown): string {
   if (err && typeof err === "object") {
@@ -103,12 +115,8 @@ export class HaCalcCard extends LitElement {
   private async _loadOperations(): Promise<void> {
     if (!this.hass) return;
     try {
-      const resp = (await this.hass.callService(
-        "ha_calc",
-        "get_operations",
-        {},
-        { return_response: true }
-      )) as { operations?: Operation[] };
+      const raw = await this.hass.callService("ha_calc", "get_operations", {}, {}, true, true);
+      const resp = unwrapServiceResult<{ operations?: Operation[] }>(raw);
       this._ops = resp.operations ?? [];
       if (this._ops.length && !this._ops.some((o) => o.id === this._op)) {
         this._op = this._ops[0].id;
@@ -132,12 +140,15 @@ export class HaCalcCard extends LitElement {
       return;
     }
     try {
-      const resp = (await this.hass.callService(
+      const raw = await this.hass.callService(
         "ha_calc",
         "calculate",
         { a, b, operation: this._op },
-        { return_response: true }
-      )) as { result?: number };
+        {},
+        true,
+        true
+      );
+      const resp = unwrapServiceResult<{ result?: number }>(raw);
       this._result = resp.result;
     } catch (e) {
       this._error = serviceErrorMessage(e);
