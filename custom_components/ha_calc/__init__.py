@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
@@ -47,11 +48,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     static_key = f"{DOMAIN}_http_static"
     if not hass.data.get(static_key) and STATIC_DIR.is_dir():
-        hass.http.register_static_path(
-            STATIC_URL_PATH,
-            str(STATIC_DIR.resolve()),
-            cache_headers=True,
-        )
+        local_path = str(STATIC_DIR.resolve())
+        if hasattr(hass.http, "async_register_static_paths"):
+            await hass.http.async_register_static_paths(
+                [
+                    StaticPathConfig(
+                        STATIC_URL_PATH,
+                        local_path,
+                        True,
+                    )
+                ]
+            )
+        else:
+            # Home Assistant < 2025.7 (deprecated API)
+            hass.http.register_static_path(
+                STATIC_URL_PATH,
+                local_path,
+                cache_headers=True,
+            )
         hass.data[static_key] = True
 
     async def handle_get_operations(_call: ServiceCall) -> ServiceResponse:

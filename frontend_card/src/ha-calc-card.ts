@@ -1,5 +1,5 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { property, state } from "lit/decorators.js";
 
 type HassLike = {
   callService(
@@ -24,7 +24,6 @@ function serviceErrorMessage(err: unknown): string {
   return String(err);
 }
 
-@customElement("ha-calc-card")
 export class HaCalcCard extends LitElement {
   @property({ attribute: false }) hass?: HassLike;
 
@@ -198,6 +197,11 @@ export class HaCalcCard extends LitElement {
       </ha-card>
     `;
   }
+}
+
+const TAG = "ha-calc-card";
+if (!customElements.get(TAG)) {
+  customElements.define(TAG, HaCalcCard);
 }
 
 declare global {
