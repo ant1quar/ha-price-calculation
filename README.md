@@ -39,6 +39,15 @@
 3. После обновления файла сделай **жёсткое обновление** дашборда (кэш) или смени версию в URL ресурса: `/ha_calc_static/ha-calc-card.js?v=2`.
 4. Карточка вызывает сервисы через **WebSocket** (`call_service` + `return_response`), а не через подменяемый `hass.callService` (иначе расширения вроде Popup View могли бы слать `return_response` внутрь `target` и ломать вызов).
 
+### Отладка карточки (консоль браузера)
+
+1. `localStorage.setItem("ha_calc_card_debug", "1")`
+2. Перезагрузи страницу с дашбордом (F5).
+3. В консоли фильтр по `[ha-calc-card]`: увидишь **точный JSON** исходящего `call_service`, транспорт (`callWS` / `sendMessagePromise`), сырой ответ или сериализованную ошибку (в т.ч. вложенные поля от бэкенда).
+4. Выключить: `localStorage.removeItem("ha_calc_card_debug")` или значение `"0"`.
+
+Альтернатива: до загрузки ресурса задать `window.__HA_CALC_CARD_DEBUG__ = true`.
+
 ## Сервисы
 
 | Сервис | Назначение |

@@ -11,6 +11,63 @@ type HassLike = {
 
 type Operation = { id: string; label: string };
 
+/** В консоли браузера: `localStorage.setItem("ha_calc_card_debug","1")` + перезагрузка; выкл: удалить ключ или `"0"`. Либо `window.__HA_CALC_CARD_DEBUG__ = true` до загрузки карточки. */
+function haCalcCardDebugEnabled(): boolean {
+  try {
+    const g = globalThis as { __HA_CALC_CARD_DEBUG__?: boolean };
+    if (g.__HA_CALC_CARD_DEBUG__ === true) return true;
+    if (typeof localStorage === "undefined") return false;
+    return localStorage.getItem("ha_calc_card_debug") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function haCalcDebug(...args: unknown[]): void {
+  if (haCalcCardDebugEnabled()) console.warn("[ha-calc-card]", ...args);
+}
+
+function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? String(v) : v), 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function serializeError(err: unknown): Record<string, unknown> {
+  if (!err || typeof err !== "object") return { message: String(err) };
+  const o = err as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(o)) {
+    try {
+      const v = o[k];
+      if (typeof v === "object" && v !== null) out[k] = JSON.parse(safeJson(v));
+      else out[k] = v;
+    } catch {
+      out[k] = "[unreadable]";
+    }
+  }
+  return out;
+}
+
+function debugDescribeHassServiceHooks(hass: HassLike): void {
+  if (!haCalcCardDebugEnabled()) return;
+  const h = hass as Record<string, unknown>;
+  haCalcDebug("hass.callWS:", typeof h.callWS);
+  haCalcDebug("hass.connection?.sendMessagePromise:", typeof h.connection?.sendMessagePromise);
+  const cs = h.callService;
+  haCalcDebug("hass.callService:", typeof cs);
+  if (typeof cs === "function") {
+    try {
+      const src = Function.prototype.toString.call(cs);
+      haCalcDebug("hass.callService source (first 400 chars):", src.slice(0, 400));
+    } catch {
+      haCalcDebug("hass.callService: (toString failed)");
+    }
+  }
+}
+
 /** Same payload as home-assistant-js-websocket `messages.callService` — `return_response` только на верхнем уровне. */
 async function callServiceWithResponse<T extends Record<string, unknown>>(
   hass: HassLike,
@@ -27,6 +84,17 @@ async function callServiceWithResponse<T extends Record<string, unknown>>(
   if (serviceData && Object.keys(serviceData).length > 0) {
     message.service_data = serviceData;
   }
+
+  debugDescribeHassServiceHooks(hass);
+  const transport: "callWS" | "sendMessagePromise" =
+    typeof hass.callWS === "function" ? "callWS" : "sendMessagePromise";
+  haCalcDebug(`outbound call_service (${domain}.${service}) transport=`, transport);
+  haCalcDebug("outbound top-level keys:", Object.keys(message));
+  haCalcDebug("outbound JSON (exact object we pass to WS):", safeJson(message));
+  if (message.target !== undefined) {
+    haCalcDebug("WARNING: message.target is set (unexpected):", safeJson(message.target));
+  }
+
   const send =
     hass.callWS?.bind(hass) ??
     ((m: Record<string, unknown>) => {
@@ -35,7 +103,18 @@ async function callServiceWithResponse<T extends Record<string, unknown>>(
       }
       return hass.connection.sendMessagePromise(m);
     });
-  const raw = await send(message);
+
+  let raw: unknown;
+  try {
+    raw = await send(message);
+  } catch (err) {
+    haCalcDebug("call_service rejected:", err);
+    haCalcDebug("call_service error serialized:", safeJson(serializeError(err)));
+    throw err;
+  }
+
+  haCalcDebug("inbound success; raw top-level keys:", raw && typeof raw === "object" ? Object.keys(raw as object) : raw);
+  haCalcDebug("inbound raw JSON:", safeJson(raw));
   return normalizeServiceResponse<T>(raw);
 }
 
@@ -160,6 +239,9 @@ export class HaCalcCard extends LitElement {
         this._op = this._ops[0].id;
       }
     } catch (e) {
+      if (haCalcCardDebugEnabled()) {
+        console.warn("[ha-calc-card] _loadOperations catch:", e, safeJson(serializeError(e)));
+      }
       this._error = serviceErrorMessage(e);
     }
   }
@@ -185,6 +267,9 @@ export class HaCalcCard extends LitElement {
       });
       this._result = resp.result;
     } catch (e) {
+      if (haCalcCardDebugEnabled()) {
+        console.warn("[ha-calc-card] _submit catch:", e, safeJson(serializeError(e)));
+      }
       this._error = serviceErrorMessage(e);
     } finally {
       this._busy = false;
